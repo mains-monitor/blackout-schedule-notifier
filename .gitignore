@@ -127,4 +127,6 @@ experiments/
 .vscode/
 in/
 out/
+group_logs/
 inventory
+**/vars/*.yml

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  blackout-sn:
+    build: .
+    container_name: blackout-sn
+    volumes:
+      - input_images:/app/in
+      - output_json:/app/out
+      - group_logs:/app/group_logs
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  input_images:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./in
+  output_json:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./out
+  group_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./group_logs

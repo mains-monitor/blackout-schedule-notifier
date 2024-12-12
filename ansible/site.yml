@@ -1,4 +1,4 @@
 - hosts: appserver
   roles:
     - common
-    - bsn
+    - blackout-sn

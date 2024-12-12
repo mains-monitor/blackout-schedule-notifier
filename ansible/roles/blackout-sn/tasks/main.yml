@@ -1,0 +1,75 @@
+- name: Create a projects dir
+  file:
+    path: /root/projects
+    state: directory
+    mode: '0755'
+- name: Clone the project from GitHub
+  git:
+    repo: 'https://github.com/mains-monitor/blackout-schedule-notifier.git'
+    dest: /root/projects/blackout-sn
+    version: master
+- name: Create logs directory
+  file:
+    path: /var/log/blackout-sn
+    state: directory
+    mode: '0755'
+- name: Create directory for input images
+  file:
+    path: /var/log/blackout-sn/in
+    state: directory
+    mode: '0755'
+- name: Create directory for output json
+  file:
+    path: /var/log/blackout-sn/out
+    state: directory
+    mode: '0755'
+- name: Create directory for group logs
+  file:
+    path: /var/log/blackout-sn/group_logs
+    state: directory
+    mode: '0755'
+- name: Run app service
+  docker_compose:
+    project_name: blackout-sn
+    recreate: always
+    build: yes
+    definition:
+      version: '3.3'
+      services:
+        blackout-sn:
+          build:
+            context: /root/projects/blackout-sn
+          container_name: blackout-sn
+          environment:
+            TELEGRAM_BOT_TOKEN: "{{ bot_token }}"
+            CHAT_ID_TO_BLACKOUT_GROUPS: "{{ chat_configs }}"
+          restart: unless-stopped
+          volumes:
+            - input_images:/app/in
+            - output_json:/app/out
+            - group_logs:/app/group_logs
+      volumes:
+        input_images:
+          driver: local
+          driver_opts:
+            type: none
+            o: bind
+            device: /var/log/blackout-sn/in
+        output_json:
+          driver: local
+          driver_opts:
+            type: none
+            o: bind
+            device: /var/log/blackout-sn/out
+        group_logs:
+          driver: local
+          driver_opts:
+            type: none
+            o: bind
+            device: /var/log/blackout-sn/group_logs
+  register: output
+- debug:
+    var: output
+- name: Prune dangling docker images
+  docker_prune:
+    images: yes
