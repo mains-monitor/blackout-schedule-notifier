@@ -5,7 +5,7 @@ import numpy as np
 import pytesseract
 
 # Number of blackout groups
-num_groups = 6
+num_groups = 12
 num_hours = 24
 
 def recognize(image_path):
@@ -52,7 +52,7 @@ def recognize(image_path):
     bounding_rects = [cv2.boundingRect(c) for _, c in id_to_internal_contours]
     x_sorted_bounding_rects = sorted(bounding_rects, key=lambda r: (r[0], r[1]))
 
-    first_column_rects = x_sorted_bounding_rects[1:7]
+    first_column_rects = x_sorted_bounding_rects[1:num_groups + 1]
     first_column_y_diffs = [r2[1] - r1[1] for r1, r2 in zip(first_column_rects, first_column_rects[1:])]
 
     # Check we really found a cells in the first column
@@ -67,7 +67,7 @@ def recognize(image_path):
 
     y_sorted_bounding_rects = sorted(bounding_rects, key=lambda r: (r[1], r[0]))
 
-    first_row_rects = y_sorted_bounding_rects[1:25]
+    first_row_rects = y_sorted_bounding_rects[1:num_hours + 1]
     first_row_x_diffs = [r2[0] - r1[0] for r1, r2 in zip(first_row_rects, first_row_rects[1:])]
 
     # Check we really found a cells in the first row
@@ -96,6 +96,7 @@ def recognize(image_path):
             cell_y = col_y_coords[row]
             rect = binary_image[cell_y:cell_y + cell_h, cell_x:cell_x + cell_w]
             avg_color = np.median(rect)
+            blackout_group = f"{row // 2 + 1}.{row % 2 + 1}"
 
             # Determine if the average color is white
             is_white = avg_color > 240
@@ -105,14 +106,14 @@ def recognize(image_path):
                     start_time = datetime.combine(datetime.now().date(), time(hour=col, minute=0))
 
             if not is_white and start_time is not None:
-                blackouts[row + 1].append(
+                blackouts[blackout_group].append(
                     dict(start=start_time, end=datetime.combine(datetime.now().date(), time(hour=col, minute=0)))
                 )
                 start_time = None
 
         if start_time is not None:
             end = datetime.combine(datetime.now().date(), time(hour=col, minute=0)) + timedelta(hours=1)
-            blackouts[row + 1].append(dict(start=start_time, end=end))
+            blackouts[blackout_group].append(dict(start=start_time, end=end))
             start_time = None
     
     return dict(date_time=date_time_text, blackouts=blackouts)

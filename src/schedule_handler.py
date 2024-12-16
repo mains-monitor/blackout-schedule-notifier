@@ -63,7 +63,7 @@ def handle_schedule_change(schedule, image_path, group_log):
             date_time = schedule["date_time"]
             time_line = []
             for group in groups:
-                for blackout in schedule["blackouts"][int(group)]:
+                for blackout in schedule["blackouts"][group]:
                     time_line.append((blackout['start'], group, 'start'))
                     time_line.append((blackout['end'], group, 'end'))
             
@@ -86,8 +86,12 @@ def handle_schedule_change(schedule, image_path, group_log):
                 else:
                     start_time, _ = stack.pop()
                     if len(stack) == num_groups - 1:
-                        merged_schedule.append(
-                            {'start': start_time, 'end': time_point})
+                        if start_time != time_point:
+                            merged_schedule.append(
+                                {'start': start_time, 'end': time_point})
+                        else:
+                            possible_switches.append(
+                                {'start': time_point, 'end': time_point + timedelta(minutes=30)})
 
             texts = []
             if merged_schedule:
