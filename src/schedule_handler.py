@@ -104,6 +104,8 @@ def handle_schedule_change(schedule, image_path, group_log):
                     '\n'.join(
                         [f"🔀{item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}" for item in possible_switches])
                 texts.append(possible_switches_text_block)
+            if not merged_schedule and not possible_switches:
+                texts.append('💡 Відключення не заплановані')
             message = generate_markdown(
                 date_time, groups, '\n'.join(texts))
             logger.info(

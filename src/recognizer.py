@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import time, datetime, timedelta
+from math import ceil
 import cv2
 import numpy as np
 import pytesseract
@@ -60,7 +61,7 @@ def recognize(image_path):
 
     # Check for anomalies in first_column_y_diffs
     mean_diff = np.mean(first_column_y_diffs)
-    std_diff = np.std(first_column_y_diffs)
+    std_diff = max(ceil(np.std(first_column_y_diffs)), 1)
     anomalies = [diff for diff in first_column_y_diffs if abs(diff - mean_diff) > 3 * std_diff]
 
     assert len(anomalies) == 0, f"Anomalies detected in first_column_y_diffs: {anomalies}"
@@ -75,7 +76,7 @@ def recognize(image_path):
 
     # Check for anomalies in first_column_y_diffs
     mean_diff = np.mean(first_row_x_diffs)
-    std_diff = np.std(first_row_x_diffs)
+    std_diff = max(ceil(np.std(first_row_x_diffs)), 1)
     anomalies = [diff for diff in first_row_x_diffs if abs(diff - mean_diff) > 3 * std_diff]
 
     assert len(anomalies) == 0, f"Anomalies detected in first_row_x_diffs: {anomalies}"
