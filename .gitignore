@@ -130,3 +130,5 @@ out/
 group_logs/
 inventory
 **/vars/*.yml
+output/
+playground/

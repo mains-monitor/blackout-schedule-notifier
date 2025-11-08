@@ -1,0 +1,35 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation
+README.md
+DOCKER.md
+*.md
+
+# Git
+.git
+.gitignore
+
+# Output
+output/
+*.json
+*.html
+
+# Other
+.DS_Store

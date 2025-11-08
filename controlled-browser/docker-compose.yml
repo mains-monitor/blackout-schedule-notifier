@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  schedule-extractor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: schedule-extractor-test
+    volumes:
+      # Mount output directory to save JSON files
+      - ./output:/app/output
+    environment:
+      # Disable Chrome sandbox for Docker
+      - CHROME_NO_SANDBOX=1
+    # Keep container running for debugging (optional)
+    # command: tail -f /dev/null
+    restart: "no"
