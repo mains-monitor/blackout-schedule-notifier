@@ -4,6 +4,10 @@ from math import ceil
 import cv2
 import numpy as np
 import pytesseract
+from zoneinfo import ZoneInfo
+
+# Europe/Kyiv timezone
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 # Number of blackout groups
 num_groups = 12
@@ -104,16 +108,16 @@ def recognize(image_path):
 
             if is_white:
                 if start_time is None:
-                    start_time = datetime.combine(datetime.now().date(), time(hour=col, minute=0))
+                    start_time = datetime.combine(datetime.now(KYIV_TZ).date(), time(hour=col, minute=0), tzinfo=KYIV_TZ)
 
             if not is_white and start_time is not None:
                 blackouts[blackout_group].append(
-                    dict(start=start_time, end=datetime.combine(datetime.now().date(), time(hour=col, minute=0)))
+                    dict(start=start_time, end=datetime.combine(datetime.now(KYIV_TZ).date(), time(hour=col, minute=0), tzinfo=KYIV_TZ))
                 )
                 start_time = None
 
         if start_time is not None:
-            end = datetime.combine(datetime.now().date(), time(hour=col, minute=0)) + timedelta(hours=1)
+            end = datetime.combine(datetime.now(KYIV_TZ).date(), time(hour=col, minute=0), tzinfo=KYIV_TZ) + timedelta(hours=1)
             blackouts[blackout_group].append(dict(start=start_time, end=end))
             start_time = None
     

@@ -10,6 +10,9 @@ from telegram.helpers import escape_markdown
 
 logger = logging.getLogger(__name__)
 
+# Europe/Kyiv timezone
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
+
 CHAT_ID_TO_BLACKOUT_GROUPS = json.loads(
     os.getenv('CHAT_ID_TO_BLACKOUT_GROUPS') or '{}')
 
@@ -50,7 +53,7 @@ def handle_schedule_change(schedule, image_path, group_log):
             f"Handling schedule change for chat_id: {chat_id} and groups: {groups}")
         table_image_path = image_path.replace('.json', '_table.png').replace('.jpg', '_table.png').replace('.png', '_table.png')
         table_image_path = generate_schedule_table_image(schedule, table_image_path, groups)
-        schedule_date_time = datetime.strptime(schedule["date_time"], "%d.%m.%Y")
+        schedule_date_time = datetime.strptime(schedule["date_time"], "%d.%m.%Y").replace(tzinfo=KYIV_TZ)
         if len(groups) == 1:
             logger.info("Handling single group")
             date_time = schedule["date_time"]
@@ -105,20 +108,19 @@ def handle_schedule_change(schedule, image_path, group_log):
             if not possible_switches and time_line:
                 first_time = time_line[0][0]
                 last_time = time_line[-1][0]
-                if first_time > datetime.combine(schedule_date_time, datetime.min.time()):
+                if first_time > datetime.combine(schedule_date_time.date(), datetime.min.time(), tzinfo=KYIV_TZ):
                     possible_switches.append(
-                        {'start': datetime.combine(schedule_date_time, datetime.min.time()), 'end': first_time})
-                if last_time < datetime.combine(schedule_date_time, datetime.max.time()):
+                        {'start': datetime.combine(schedule_date_time.date(), datetime.min.time(), tzinfo=KYIV_TZ), 'end': first_time})
+                if last_time < datetime.combine(schedule_date_time.date(), datetime.max.time(), tzinfo=KYIV_TZ):
                     possible_switches.append(
-                        {'start': last_time, 'end': datetime.combine(schedule_date_time, datetime.max.time())})
+                        {'start': last_time, 'end': datetime.combine(schedule_date_time.date(), datetime.max.time(), tzinfo=KYIV_TZ)})
 
             texts = []
-            kyiv_tz = ZoneInfo("Europe/Kyiv")
-            now_kyiv = datetime.now(kyiv_tz)
+            now_kyiv = datetime.now(KYIV_TZ)
 
             merged_schedule = [
                  period for period in merged_schedule
-                 if period['end'].replace(tzinfo=kyiv_tz) > now_kyiv
+                 if period['end'] > now_kyiv
             ]
             if merged_schedule:
                 schedule_text_block = escape_markdown('Відключення:\n', version=2) + \
@@ -129,7 +131,7 @@ def handle_schedule_change(schedule, image_path, group_log):
                 possible_switches_text_block = '🔀 Можливі перемикання протягом дня\n'
                 texts.append(possible_switches_text_block)
             if not merged_schedule and not possible_switches:
-                if schedule_date_time.date() == datetime.now().date():
+                if schedule_date_time.date() == datetime.now(KYIV_TZ).date():
                     texts.append(escape_markdown('💡 Відключення не заплановані', version=2))
                 else:
                     continue
@@ -145,7 +147,7 @@ def handle_schedule_changes_with_masks(schedule, image_path, group_log):
             f"Handling schedule change for chat_id: {chat_id} and groups: {groups}")
         table_image_path = image_path.replace('.json', '_table.png').replace('.jpg', '_table.png').replace('.png', '_table.png')
         table_image_path = generate_schedule_table_image(schedule, table_image_path, groups)
-        schedule_date_time = datetime.strptime(schedule["date_time"], "%d.%m.%Y")
+        schedule_date_time = datetime.strptime(schedule["date_time"], "%d.%m.%Y").replace(tzinfo=KYIV_TZ)
         combined_mask = (1 << 24) - 1  # All 24 bits set
         possible_switches_mask = 0
         for group in groups:
@@ -158,7 +160,7 @@ def handle_schedule_changes_with_masks(schedule, image_path, group_log):
             logger.info("No changes in the schedule for the groups")
             continue
         if combined_mask == 0 and possible_switches_mask == 0:
-            if schedule_date_time.date() == datetime.now().date():
+            if schedule_date_time.date() == datetime.now(KYIV_TZ).date():
                 post_message_with_image(chat_id, table_image_path, escape_markdown('💡 Відключення не заплановані', version=2))
             continue
         blackout_periods = []
@@ -167,26 +169,25 @@ def handle_schedule_changes_with_masks(schedule, image_path, group_log):
             if (combined_mask >> hour) & 1:
                 if not start_time:
                     start_time = datetime.combine(
-                        datetime.now().date(), datetime.min.time()) + timedelta(hours=hour)
+                        schedule_date_time.date(), datetime.min.time(), tzinfo=KYIV_TZ) + timedelta(hours=hour)
             else:
                 if start_time:
                     end_time = datetime.combine(
-                            datetime.now().date(), datetime.min.time()) + timedelta(hours=hour)
+                            schedule_date_time.date(), datetime.min.time(), tzinfo=KYIV_TZ) + timedelta(hours=hour)
                     blackout_periods.append(
                         {'start': start_time, 'end': end_time})
                     start_time = None
         if start_time:
             end_time = datetime.combine(
-                datetime.now().date(), datetime.min.time()) + timedelta(hours=24)
+                schedule_date_time.date(), datetime.min.time(), tzinfo=KYIV_TZ) + timedelta(hours=24)
             blackout_periods.append(
                 {'start': start_time, 'end': end_time})
         
-        kyiv_tz = ZoneInfo("Europe/Kyiv")
-        now_kyiv = datetime.now(kyiv_tz)
+        now_kyiv = datetime.now(KYIV_TZ)
 
         blackout_periods = [
             period for period in blackout_periods
-            if period['end'].replace(tzinfo=kyiv_tz) > now_kyiv
+            if period['end'] > now_kyiv
         ]
 
         schedule_text_block = '\n'.join(

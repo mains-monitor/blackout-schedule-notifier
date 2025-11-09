@@ -2,8 +2,12 @@ import logging
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 import os
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
+
+# Europe/Kyiv timezone
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 
 def generate_schedule_table_image(schedule, output_path, groups=None):
@@ -219,7 +223,7 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
     if date_time_str:
         # Parse date_time and format for filename
         try:
-            dt = datetime.strptime(date_time_str, "%d.%m.%Y")
+            dt = datetime.strptime(date_time_str, "%d.%m.%Y").replace(tzinfo=KYIV_TZ)
             timestamp = dt.strftime("%Y%m%d_%H%M")
             # Insert timestamp before file extension
             base, ext = os.path.splitext(output_path)

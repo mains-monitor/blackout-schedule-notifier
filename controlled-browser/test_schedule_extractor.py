@@ -11,6 +11,10 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+# Europe/Kyiv timezone
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -86,7 +90,7 @@ class ScheduleExtractor:
         
     def _timestamp(self):
         """Get formatted timestamp for logging."""
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now(KYIV_TZ).strftime("%Y-%m-%d %H:%M:%S")
     
     def _calculate_md5(self, content):
         """Calculate MD5 hash of content."""
@@ -116,7 +120,7 @@ class ScheduleExtractor:
             page_source = self.driver.page_source
 
             # Dump page source to file for debugging
-            debug_file = self.output_dir / f"page_source_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            debug_file = self.output_dir / f"page_source_{datetime.now(KYIV_TZ).strftime('%Y%m%d_%H%M%S')}.html"
             with open(debug_file, 'w', encoding='utf-8') as f:
                 f.write(page_source)
             print(f"[{self._timestamp()}] Page source saved to {debug_file.name}")
@@ -134,7 +138,7 @@ class ScheduleExtractor:
             print(f"[{self._timestamp()}] DisconSchedule.fact extracted successfully")
             
             # Dump raw JSON string to file for debugging
-            json_debug_file = self.output_dir / f"schedule_json_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            json_debug_file = self.output_dir / f"schedule_json_{datetime.now(KYIV_TZ).strftime('%Y%m%d_%H%M%S')}.json"
             with open(json_debug_file, 'w', encoding='utf-8') as f:
                 f.write(json_str)
             print(f"[{self._timestamp()}] Raw JSON saved to {json_debug_file.name}")

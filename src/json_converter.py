@@ -2,8 +2,12 @@ import json
 import logging
 from datetime import datetime, time, timedelta
 from collections import defaultdict
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
+
+# Europe/Kyiv timezone
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 
 def convert_supplier_json_to_internal(json_path):
@@ -41,9 +45,10 @@ def convert_supplier_json_to_internal(json_path):
     results = []
 
     for timestamp, day_data in supplier_data.get("data", {}).items():
-        date_time = datetime.fromtimestamp(int(timestamp)).date().strftime("%d.%m.%Y")
-        # Convert timestamp to date for datetime objects
-        base_date = datetime.fromtimestamp(int(timestamp)).date()
+        # Convert timestamp to Europe/Kyiv timezone
+        date_time = datetime.fromtimestamp(int(timestamp), tz=KYIV_TZ).date().strftime("%d.%m.%Y")
+        # Convert timestamp to date for datetime objects in Europe/Kyiv timezone
+        base_date = datetime.fromtimestamp(int(timestamp), tz=KYIV_TZ).date()
         # Build internal format
         blackouts = defaultdict(list)
         bit_masks = {}
@@ -69,7 +74,7 @@ def convert_supplier_json_to_internal(json_path):
                     # Power is available
                     if start_time is not None:
                         # End the blackout period
-                        end_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=0))
+                        end_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=0), tzinfo=KYIV_TZ)
                         if hour == 24:
                             end_time += timedelta(days=1)
                         
@@ -82,7 +87,7 @@ def convert_supplier_json_to_internal(json_path):
                     if start_time:
                         group_bit_mask |= (1 << (hour - 1))
                         # End the previous blackout period
-                        end_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=30))
+                        end_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=30), tzinfo=KYIV_TZ)
                         if hour == 24:
                             end_time += timedelta(days=1)
                         
@@ -95,20 +100,20 @@ def convert_supplier_json_to_internal(json_path):
                 elif status == "second":
                     if start_time is None:
                         # Start a new blackout period
-                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=30))
+                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=30), tzinfo=KYIV_TZ)
                         group_bit_mask |= (1 << (hour - 1))
                 else:
                     group_bit_mask |= (1 << (hour - 1))
                     # Blackout starts or continues
                     if start_time is None:
                         # Hour strings are 1-24, but datetime hours are 0-23
-                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=0))
+                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=0), tzinfo=KYIV_TZ)
                         if hour == 24:
                             start_time += timedelta(days=1)
             
             # Close any open blackout period at the end of the day
             if start_time is not None:
-                end_time = datetime.combine(base_date, time(hour=23, minute=59)) + timedelta(minutes=1)
+                end_time = datetime.combine(base_date, time(hour=23, minute=59), tzinfo=KYIV_TZ) + timedelta(minutes=1)
                 blackouts[internal_group].append({
                     "start": start_time,
                     "end": end_time
