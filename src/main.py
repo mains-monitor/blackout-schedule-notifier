@@ -7,8 +7,7 @@ import os
 import glob
 import json
 import hashlib
-from schedule_handler import handle_schedule_change, handle_schedule_changes_with_masks
-from recognizer import recognize
+from schedule_handler import handle_schedule_change
 from json_converter import convert_supplier_json_to_internal
 
 logging.basicConfig(level=logging.INFO,
@@ -78,7 +77,8 @@ if __name__ == "__main__":
 
     if mode == 'image':
         logger.info("Processing image with OCR recognition")
-        schedule = recognize(src)
+        # schedule = recognize(src)
+        raise NotImplementedError("Image recognition mode is not implemented yet.")
     elif mode == 'json':
         logger.info("Processing supplier JSON file")
         schedule = convert_supplier_json_to_internal(src)
