@@ -61,23 +61,10 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
     img = Image.new('RGB', (width, height), color='white')
     draw = ImageDraw.Draw(img)
     
-    # Try to load font
-    try:
-        # For macOS
-        title_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
-        header_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
-        cell_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 14)
-    except:
-        try:
-            # Alternative font for macOS
-            title_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 20)
-            header_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 16)
-            cell_font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 14)
-        except:
-            # If font loading fails, use default
-            title_font = ImageFont.load_default()
-            header_font = ImageFont.load_default()
-            cell_font = ImageFont.load_default()
+    
+    title_font = ImageFont.load_default(20)
+    header_font = ImageFont.load_default(16)
+    cell_font = ImageFont.load_default(14)
     
     # Draw header with date
     date_time_str = schedule.get("date_time", "")
