@@ -43,7 +43,8 @@ def time_converter(obj):
 def dump_json_to_file(json_data, directory):
     json_str = json.dumps(json_data, sort_keys=True, default=time_converter)
     md5_hash = hashlib.md5(json_str.encode()).hexdigest()
-    file_path = os.path.join(directory, f"{md5_hash}.json")
+    file_name = f"{md5_hash}.json"
+    file_path = os.path.join(directory, file_name)
     logger.info(f"Saving schedule to: {file_path}")
 
     if os.path.exists(file_path):
@@ -54,7 +55,19 @@ def dump_json_to_file(json_data, directory):
         json_file.write(json_str)
 
     logger.info(f"Schedule saved to: {file_path}")
-    return True
+    return file_name
+
+
+def dump_meta_info(meta_info, out_dir):
+    meta_file_path = os.path.join(out_dir, 'meta_info.json')
+    if os.path.exists(meta_file_path):
+        with open(meta_file_path, 'r') as f:
+            existing_meta = json.load(f)
+        existing_meta.update(meta_info)
+        meta_info = existing_meta
+    with open(meta_file_path, 'w') as f:
+        json.dump(meta_info, f, indent=2)
+    logger.info(f"Meta info saved to: {meta_file_path}")
 
 
 if __name__ == "__main__":
@@ -85,16 +98,24 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unknown mode: {mode}")
 
+    meta_info = {}
+
     if isinstance(schedule, list):
         for single_schedule in schedule:
-            if dump_json_to_file(single_schedule, out_dir):
+            file_name = dump_json_to_file(single_schedule, out_dir)
+            meta_info[single_schedule["date_time"]] = file_name
+            if file_name:
                 # if 'bit_masks' in single_schedule:
                 #     handle_schedule_changes_with_masks(single_schedule, src, group_log)
                 # else:
                 handle_schedule_change(single_schedule, src, group_log) 
     else:
-        if dump_json_to_file(schedule, out_dir):
+        file_name = dump_json_to_file(schedule, out_dir)
+        meta_info[schedule["date_time"]] = file_name
+        if file_name:
             # if 'bit_masks' in schedule:
             #     handle_schedule_changes_with_masks(schedule, src, group_log)
             # else:
             handle_schedule_change(schedule, src, group_log)
+
+    dump_meta_info(meta_info, out_dir)
