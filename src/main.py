@@ -88,13 +88,13 @@ if __name__ == "__main__":
     if isinstance(schedule, list):
         for single_schedule in schedule:
             if dump_json_to_file(single_schedule, out_dir):
-                if 'bit_masks' in single_schedule:
-                    handle_schedule_changes_with_masks(single_schedule, src, group_log)
-                else:
-                    handle_schedule_change(single_schedule, src, group_log) 
+                # if 'bit_masks' in single_schedule:
+                #     handle_schedule_changes_with_masks(single_schedule, src, group_log)
+                # else:
+                handle_schedule_change(single_schedule, src, group_log) 
     else:
         if dump_json_to_file(schedule, out_dir):
-            if 'bit_masks' in schedule:
-                handle_schedule_changes_with_masks(schedule, src, group_log)
-            else:
-                handle_schedule_change(schedule, src, group_log)
+            # if 'bit_masks' in schedule:
+            #     handle_schedule_changes_with_masks(schedule, src, group_log)
+            # else:
+            handle_schedule_change(schedule, src, group_log)

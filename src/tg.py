@@ -18,9 +18,9 @@ def post_message_with_image(chat_id, image_path, message_text):
     
     async def _send_msg():
         if send_with_image:
-            await bot.send_photo(chat_id=chat_id, photo=open(image_path, 'rb'), caption=message_text)
+            await bot.send_photo(chat_id=chat_id, photo=open(image_path, 'rb'), caption=message_text, parse_mode='MarkdownV2')
         else:
-            await bot.send_message(chat_id=chat_id, text=message_text)
+            await bot.send_message(chat_id=chat_id, text=message_text, parse_mode='MarkdownV2')
 
     asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()

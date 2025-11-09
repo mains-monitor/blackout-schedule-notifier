@@ -130,5 +130,6 @@ out/
 group_logs/
 inventory
 **/vars/*.yml
-output/
 playground/
+*.png
+/controlled-browser/output/

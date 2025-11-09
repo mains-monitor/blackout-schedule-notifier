@@ -65,15 +65,7 @@ def convert_supplier_json_to_internal(json_path):
                 # "no" or "maybe" means blackout
                 has_power = status == "yes"
 
-                if not has_power:
-                    group_bit_mask |= (1 << (hour - 1))
-                    # Blackout starts or continues
-                    if start_time is None:
-                        # Hour strings are 1-24, but datetime hours are 0-23
-                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=0))
-                        if hour == 24:
-                            start_time += timedelta(days=1)
-                else:
+                if has_power:
                     # Power is available
                     if start_time is not None:
                         # End the blackout period
@@ -86,6 +78,33 @@ def convert_supplier_json_to_internal(json_path):
                             "end": end_time
                         })
                         start_time = None
+                elif status == "first":
+                    if start_time:
+                        group_bit_mask |= (1 << (hour - 1))
+                        # End the previous blackout period
+                        end_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=30))
+                        if hour == 24:
+                            end_time += timedelta(days=1)
+                        
+                        blackouts[internal_group].append({
+                            "start": start_time,
+                            "end": end_time
+                        })
+                        start_time = None
+                        
+                elif status == "second":
+                    if start_time is None:
+                        # Start a new blackout period
+                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=30))
+                        group_bit_mask |= (1 << (hour - 1))
+                else:
+                    group_bit_mask |= (1 << (hour - 1))
+                    # Blackout starts or continues
+                    if start_time is None:
+                        # Hour strings are 1-24, but datetime hours are 0-23
+                        start_time = datetime.combine(base_date, time(hour=(hour - 1) % 24, minute=0))
+                        if hour == 24:
+                            start_time += timedelta(days=1)
             
             # Close any open blackout period at the end of the day
             if start_time is not None:

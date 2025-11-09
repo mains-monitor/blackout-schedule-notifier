@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def generate_schedule_table_image(schedule, output_path, groups=None):
     """
     Generates a table image with blackout schedule.
+    Supports half-hour granularity - cells can be filled fully, half (left or right), or not at all.
     
     Args:
         schedule: Dictionary with schedule in format:
@@ -42,14 +43,9 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
     TITLE_Y = 10
     
     # Get groups
-    if "bit_masks" in schedule:
-        if not groups:
-            groups = sorted(schedule["bit_masks"].keys())
-        use_bitmasks = True
-    else:
-        if not groups:
-            groups = sorted(schedule["blackouts"].keys())
-        use_bitmasks = False
+    
+    if not groups:
+        groups = sorted(schedule["blackouts"].keys())
     
     hours = list(range(24))
     
@@ -92,31 +88,43 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
         draw.text((x + CELL_WIDTH // 2, y), hour_text, fill='black', 
                   font=header_font, anchor='mm')
     
-    # Convert schedule to bitmasks for convenience
-    group_bitmasks = {}
+    # Convert schedule to half-hour bitmasks for convenience
+    # Each hour has 2 half-hour periods: 0 = no blackout, 1 = first half, 2 = second half, 3 = full hour
+    group_half_hour_masks = {}
     
-    if use_bitmasks:
-        for group in groups:
-            mask_str = schedule["bit_masks"][group]
-            group_bitmasks[group] = [int(bit) for bit in mask_str[::-1]]
-    else:
-        # Convert blackouts to bitmasks
-        for group in groups:
-            bitmask = [0] * 24
-            if group in schedule["blackouts"]:
-                for blackout in schedule["blackouts"][group]:
-                    start_hour = blackout["start"].hour
-                    end_hour = blackout["end"].hour
-                    
-                    # If end is at 00:00 next day
-                    if end_hour == 0 and blackout["end"].date() > blackout["start"].date():
-                        end_hour = 24
-                    
-                    for hour in range(start_hour, end_hour):
-                        if hour < 24:
-                            bitmask[hour] = 1
-            
-            group_bitmasks[group] = bitmask
+    # Convert blackouts to half-hour bitmasks
+    for group in groups:
+        # Store as list of 24 values, each 0-3 representing state of that hour
+        half_hour_mask = [0] * 24
+        
+        if group in schedule["blackouts"]:
+            for blackout in schedule["blackouts"][group]:
+                start_dt = blackout["start"]
+                end_dt = blackout["end"]
+                
+                # Calculate start half-hour slot (0-47)
+                start_half_hour = start_dt.hour * 2 + (1 if start_dt.minute >= 30 else 0)
+                
+                # Calculate end half-hour slot (0-48, where 48 = midnight next day)
+                if end_dt.date() > start_dt.date() and end_dt.hour == 0 and end_dt.minute == 0:
+                    end_half_hour = 48
+                else:
+                    end_half_hour = end_dt.hour * 2 + (1 if end_dt.minute >= 30 else 0)
+                
+                # Mark affected hours
+                for half_hour_slot in range(start_half_hour, end_half_hour):
+                    if half_hour_slot < 48:
+                        hour_index = half_hour_slot // 2
+                        is_first_half = (half_hour_slot % 2 == 0)
+                        
+                        if is_first_half:
+                            # Mark first half (add 1)
+                            half_hour_mask[hour_index] |= 1
+                        else:
+                            # Mark second half (add 2)
+                            half_hour_mask[hour_index] |= 2
+        
+        group_half_hour_masks[group] = half_hour_mask
     
     # Draw table
     for row_idx, group in enumerate(groups):
@@ -124,7 +132,7 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
         
         # Draw group name
         draw.text((GROUP_COLUMN_WIDTH // 2, y_start + CELL_HEIGHT // 2), 
-                  group, fill='black', font=cell_font, anchor='mm')
+                  group, fill='black', font=title_font, anchor='mm')
         
         # Draw vertical line after group name
         draw.line([(GROUP_COLUMN_WIDTH, y_start), 
@@ -132,24 +140,71 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
                   fill='gray', width=1)
         
         # Draw cells for each hour
-        bitmask = group_bitmasks[group]
-        for col_idx, is_blackout in enumerate(bitmask):
+        half_hour_mask = group_half_hour_masks[group]
+        for col_idx, hour_state in enumerate(half_hour_mask):
             x_start = GROUP_COLUMN_WIDTH + col_idx * CELL_WIDTH
             
-            # Determine cell color
-            if is_blackout:
-                cell_color = 'black'
-            else:
-                cell_color = 'white'
+            # hour_state: 0 = no blackout, 1 = first half only, 2 = second half only, 3 = full hour
             
-            # Draw cell
-            draw.rectangle(
-                [(x_start, y_start), 
-                 (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)],
-                fill=cell_color,
-                outline='gray',
-                width=1
-            )
+            if hour_state == 0:
+                # No blackout - white cell
+                draw.rectangle(
+                    [(x_start, y_start), 
+                     (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)],
+                    fill='white',
+                    outline='gray',
+                    width=1
+                )
+            elif hour_state == 3:
+                # Full hour blackout - black cell
+                draw.rectangle(
+                    [(x_start, y_start), 
+                     (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)],
+                    fill='black',
+                    outline='gray',
+                    width=1
+                )
+            elif hour_state == 1:
+                # First half blackout - left half black, right half white
+                # Draw white background
+                draw.rectangle(
+                    [(x_start, y_start), 
+                     (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)],
+                    fill='white',
+                    outline='gray',
+                    width=1
+                )
+                # Draw black left half
+                draw.rectangle(
+                    [(x_start, y_start), 
+                     (x_start + CELL_WIDTH // 2, y_start + CELL_HEIGHT)],
+                    fill='black',
+                    outline=None
+                )
+                # Redraw left border
+                draw.line([(x_start, y_start), (x_start, y_start + CELL_HEIGHT)], 
+                          fill='gray', width=1)
+            elif hour_state == 2:
+                # Second half blackout - left half white, right half black
+                # Draw white background
+                draw.rectangle(
+                    [(x_start, y_start), 
+                     (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)],
+                    fill='white',
+                    outline='gray',
+                    width=1
+                )
+                # Draw black right half
+                draw.rectangle(
+                    [(x_start + CELL_WIDTH // 2, y_start), 
+                     (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)],
+                    fill='black',
+                    outline=None
+                )
+                # Redraw right border
+                draw.line([(x_start + CELL_WIDTH, y_start), 
+                          (x_start + CELL_WIDTH, y_start + CELL_HEIGHT)], 
+                          fill='gray', width=1)
     
     # Draw horizontal line under header
     draw.line([(0, HEADER_HEIGHT), (width, HEADER_HEIGHT)], 
@@ -161,6 +216,17 @@ def generate_schedule_table_image(schedule, output_path, groups=None):
     
     # Save image
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
+    if date_time_str:
+        # Parse date_time and format for filename
+        try:
+            dt = datetime.strptime(date_time_str, "%d.%m.%Y")
+            timestamp = dt.strftime("%Y%m%d_%H%M")
+            # Insert timestamp before file extension
+            base, ext = os.path.splitext(output_path)
+            output_path = f"{base}_{timestamp}{ext}"
+        except ValueError:
+            logger.warning(f"Could not parse date_time: {date_time_str}")
+    
     img.save(output_path)
     logger.info(f"Schedule table image saved to: {output_path}")
     

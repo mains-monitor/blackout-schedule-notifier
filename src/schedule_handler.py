@@ -5,17 +5,20 @@ import os
 import json
 from tg import post_message_with_image
 from image_generator import generate_schedule_table_image
+from zoneinfo import ZoneInfo
+from telegram.helpers import escape_markdown
 
 logger = logging.getLogger(__name__)
 
 CHAT_ID_TO_BLACKOUT_GROUPS = json.loads(
     os.getenv('CHAT_ID_TO_BLACKOUT_GROUPS') or '{}')
 
-def generate_markdown(date_time, groups, blackouts):
+def generate_markdown(date_time, groups, blackouts, last_updated_str):
     message = f"""
-🗓 Графік на {date_time}\n\n{', '.join(groups)} {'група' if len(groups) == 1 else 'групи'}
+🗓 Графік на {escape_markdown(date_time, version=2)}\n\n{', '.join(escape_markdown(g, version=2) for g in groups)} {'група' if len(groups) == 1 else 'групи'}
 
 {blackouts}
+_Станом на {escape_markdown(last_updated_str, version=2)}_
 """
     return message
 
@@ -41,14 +44,13 @@ def _store_hash_if_not_exist(directory, json_data):
     return True
 
 
-def handle_schedule_change(schedule, image_path, group_log):
-    # Generate table image
-    
-    for chant_id, groups in CHAT_ID_TO_BLACKOUT_GROUPS.items():
+def handle_schedule_change(schedule, image_path, group_log):    
+    for chat_id, groups in CHAT_ID_TO_BLACKOUT_GROUPS.items():
         logger.info(
-            f"Handling schedule change for chant_id: {chant_id} and groups: {groups}")
+            f"Handling schedule change for chat_id: {chat_id} and groups: {groups}")
         table_image_path = image_path.replace('.json', '_table.png').replace('.jpg', '_table.png').replace('.png', '_table.png')
-        generate_schedule_table_image(schedule, table_image_path, groups)
+        table_image_path = generate_schedule_table_image(schedule, table_image_path, groups)
+        schedule_date_time = datetime.strptime(schedule["date_time"], "%d.%m.%Y")
         if len(groups) == 1:
             logger.info("Handling single group")
             date_time = schedule["date_time"]
@@ -57,12 +59,12 @@ def handle_schedule_change(schedule, image_path, group_log):
                 logger.info("No changes in the schedule for the group")
                 continue
             schedule_text_block = '\n'.join(
-                [f"◾️ {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}" for item in group_schedule])
+                [escape_markdown(f"◾️ {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}", version=2) for item in group_schedule])
             message = generate_markdown(
-                date_time, groups, schedule_text_block)
+                date_time, groups, schedule_text_block, schedule.get("last_updated"))
             logger.info(
                 f"Posting message with image: {table_image_path} and message: {message}")
-            post_message_with_image(chant_id, table_image_path, message)
+            post_message_with_image(chat_id, table_image_path, message)
         else:
             logger.info("Handling multiple groups")
             date_time = schedule["date_time"]
@@ -100,31 +102,50 @@ def handle_schedule_change(schedule, image_path, group_log):
                             possible_switches.append(
                                 {'start': time_point, 'end': time_point + timedelta(minutes=30)})
 
+            if not possible_switches and time_line:
+                first_time = time_line[0][0]
+                last_time = time_line[-1][0]
+                if first_time > datetime.combine(schedule_date_time, datetime.min.time()):
+                    possible_switches.append(
+                        {'start': datetime.combine(schedule_date_time, datetime.min.time()), 'end': first_time})
+                if last_time < datetime.combine(schedule_date_time, datetime.max.time()):
+                    possible_switches.append(
+                        {'start': last_time, 'end': datetime.combine(schedule_date_time, datetime.max.time())})
+
             texts = []
+            kyiv_tz = ZoneInfo("Europe/Kyiv")
+            now_kyiv = datetime.now(kyiv_tz)
+
+            merged_schedule = [
+                 period for period in merged_schedule
+                 if period['end'].replace(tzinfo=kyiv_tz) > now_kyiv
+            ]
             if merged_schedule:
-                schedule_text_block = 'Відключення:\n' + \
+                schedule_text_block = escape_markdown('Відключення:\n', version=2) + \
                     '\n'.join(
-                        [f"◾️ {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}" for item in merged_schedule])
+                        [escape_markdown(f"◾️ {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}", version=2) for item in merged_schedule])
                 texts.append(schedule_text_block + '\n')
             if possible_switches:
-                possible_switches_text_block = 'Можливе перемикання:\n' + \
-                    '\n'.join(
-                        [f"🔀{item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}" for item in possible_switches])
+                possible_switches_text_block = '🔀 Можливі перемикання протягом дня\n'
                 texts.append(possible_switches_text_block)
             if not merged_schedule and not possible_switches:
-                texts.append('💡 Відключення не заплановані')
+                if schedule_date_time.date() == datetime.now().date():
+                    texts.append(escape_markdown('💡 Відключення не заплановані', version=2))
+                else:
+                    continue
             message = generate_markdown(
-                date_time, groups, '\n'.join(texts))
+                date_time, groups, '\n'.join(texts), schedule.get("last_updated"))
             logger.info(
                 f"Posting message with image: {table_image_path} and message: {message}")
-            post_message_with_image(chant_id, table_image_path, message)
+            post_message_with_image(chat_id, table_image_path, message)
 
 def handle_schedule_changes_with_masks(schedule, image_path, group_log):
-    for chant_id, groups in CHAT_ID_TO_BLACKOUT_GROUPS.items():
+    for chat_id, groups in CHAT_ID_TO_BLACKOUT_GROUPS.items():
         logger.info(
-            f"Handling schedule change for chant_id: {chant_id} and groups: {groups}")
+            f"Handling schedule change for chat_id: {chat_id} and groups: {groups}")
         table_image_path = image_path.replace('.json', '_table.png').replace('.jpg', '_table.png').replace('.png', '_table.png')
-        generate_schedule_table_image(schedule, table_image_path, groups)
+        table_image_path = generate_schedule_table_image(schedule, table_image_path, groups)
+        schedule_date_time = datetime.strptime(schedule["date_time"], "%d.%m.%Y")
         combined_mask = (1 << 24) - 1  # All 24 bits set
         possible_switches_mask = 0
         for group in groups:
@@ -137,10 +158,10 @@ def handle_schedule_changes_with_masks(schedule, image_path, group_log):
             logger.info("No changes in the schedule for the groups")
             continue
         if combined_mask == 0 and possible_switches_mask == 0:
-            post_message_with_image(chant_id, table_image_path, '💡 Відключення не заплановані')
+            if schedule_date_time.date() == datetime.now().date():
+                post_message_with_image(chat_id, table_image_path, escape_markdown('💡 Відключення не заплановані', version=2))
             continue
         blackout_periods = []
-        possible_switches_periods = []
         start_time = None
         for hour in range(24):
             if (combined_mask >> hour) & 1:
@@ -160,29 +181,22 @@ def handle_schedule_changes_with_masks(schedule, image_path, group_log):
             blackout_periods.append(
                 {'start': start_time, 'end': end_time})
         
-        if possible_switches_mask != 0:
-            group_detect_masks = [possible_switches_mask ^ int(schedule["bit_masks"][group],2) for group in groups if group in schedule["bit_masks"]]
-            switching_period_continues = False
-            for hour in range(24):
-                if (possible_switches_mask >> hour) & 1 and not switching_period_continues:
-                    start_time = datetime.combine(
-                        datetime.now().date(), datetime.min.time()) + timedelta(hours=hour)
-                    end_time = start_time + timedelta(minutes=30)
-                    possible_switches_periods.append(
-                        {'start': start_time, 'end': end_time})
-                    switching_period_continues = True
-                elif not (possible_switches_mask >> hour) & 1:
-                    switching_period_continues = False
+        kyiv_tz = ZoneInfo("Europe/Kyiv")
+        now_kyiv = datetime.now(kyiv_tz)
+
+        blackout_periods = [
+            period for period in blackout_periods
+            if period['end'].replace(tzinfo=kyiv_tz) > now_kyiv
+        ]
 
         schedule_text_block = '\n'.join(
-            [f"◾️ {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}" for item in blackout_periods])
+            [escape_markdown(f"◾️ {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}", version=2) for item in blackout_periods])
         
-        if possible_switches_periods:
-            schedule_text_block += 'Можливе перемикання:\n' + '\n'.join(
-                [f"🔀 {item['start'].strftime('%H:%M')} - {item['end'].strftime('%H:%M')}" for item in possible_switches_periods])
+        if possible_switches_mask != 0:
+            schedule_text_block += '\n\n' + escape_markdown('🔀 Можливі перемикання протягом дня\n', version=2)
 
         message = generate_markdown(
-            schedule["date_time"], groups, schedule_text_block)
+            schedule["date_time"], groups, schedule_text_block, schedule.get("last_updated"))
         logger.info(
             f"Posting message with image: {table_image_path} and message: {message}")
-        post_message_with_image(chant_id, table_image_path, message)
+        post_message_with_image(chat_id, table_image_path, message)
