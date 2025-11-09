@@ -1,0 +1,47 @@
+name: Schedule Downloader
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      - name: Create virtual environment and install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      
+      - name: Run json-downloader
+        env:
+          INPUT_DIRECTORY: ${{ vars.INPUT_DIRECTORY || 'input' }}
+          OUTPUT_DIRECTORY: ${{ vars.OUTPUT_DIRECTORY || 'output' }}
+          GROUP_LOGS_DIRECTORY: ${{ vars.GROUP_LOGS_DIRECTORY || 'group-logs' }}
+          SCHEDULE_SOURCE_URL: ${{ secrets.SCHEDULE_SOURCE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID_TO_BLACKOUT_GROUPS: ${{ secrets.CHAT_ID_TO_BLACKOUT_GROUPS }}
+        run: |
+          source .venv/bin/activate
+          chmod +x json-downloader.sh
+          ./json-downloader.sh
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "Update schedule data - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          git push
