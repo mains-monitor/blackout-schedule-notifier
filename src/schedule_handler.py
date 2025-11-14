@@ -32,9 +32,9 @@ def time_converter(obj):
     raise TypeError("Type not serializable")
 
 
-def _store_hash_if_not_exist(directory, json_data):
+def _store_hash_if_not_exist(directory, json_data, chat_id):
     json_str = json.dumps(json_data, sort_keys=True, default=time_converter)
-    md5_hash = hashlib.md5(json_str.encode()).hexdigest()
+    md5_hash = hashlib.md5(json_str.encode() + chat_id.encode()).hexdigest()
     file_path = os.path.join(directory, f"{md5_hash}")
 
     if os.path.exists(file_path):
@@ -58,7 +58,7 @@ def handle_schedule_change(schedule, image_path, group_log):
             logger.info("Handling single group")
             date_time = schedule["date_time"]
             group_schedule = schedule["blackouts"][groups[0]]
-            if not _store_hash_if_not_exist(group_log, group_schedule):
+            if not _store_hash_if_not_exist(group_log, group_schedule, chat_id):
                 logger.info("No changes in the schedule for the group")
                 continue
             schedule_text_block = '\n'.join(
@@ -84,7 +84,7 @@ def handle_schedule_change(schedule, image_path, group_log):
             stack = []
             possible_switches = []
 
-            if not _store_hash_if_not_exist(group_log, time_line):
+            if not _store_hash_if_not_exist(group_log, time_line, chat_id):
                 logger.info(
                     f"No changes in the schedule for the groups {groups}")
                 continue
@@ -156,7 +156,7 @@ def handle_schedule_changes_with_masks(schedule, image_path, group_log):
                 group_mask = int(group_mask_str, 2)
                 combined_mask &= group_mask
                 possible_switches_mask ^= group_mask
-        if not _store_hash_if_not_exist(group_log, [schedule["bit_masks"][group] for group in groups]):
+        if not _store_hash_if_not_exist(group_log, [schedule["bit_masks"][group] for group in groups], chat_id):
             logger.info("No changes in the schedule for the groups")
             continue
         if combined_mask == 0 and possible_switches_mask == 0:

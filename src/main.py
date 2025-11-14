@@ -26,10 +26,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def remove_old_files(directory, max_files=10):
+def remove_old_files(directory, max_files=10, exceptions=None):
     files = glob.glob(os.path.join(directory, '*'))
     files.sort(key=os.path.getmtime, reverse=True)
     for file in files[max_files:]:
+        if exceptions and file in exceptions:
+            continue
         logger.info(f"Removing old file: {file}")
         os.remove(file)
 
@@ -64,7 +66,10 @@ def dump_meta_info(meta_info, out_dir):
         with open(meta_file_path, 'r') as f:
             existing_meta = json.load(f)
         existing_meta.update(meta_info)
-        meta_info = existing_meta
+        dates = [datetime.strptime(schedule_date, "%d.%m.%Y") for schedule_date in existing_meta.keys()]
+        dates.sort()
+        latest_dates = dates[-3:]
+        meta_info = {date.strftime("%d.%m.%Y"): existing_meta[date.strftime("%d.%m.%Y")] for date in latest_dates}
     with open(meta_file_path, 'w') as f:
         json.dump(meta_info, f, indent=2)
     logger.info(f"Meta info saved to: {meta_file_path}")
@@ -83,10 +88,6 @@ if __name__ == "__main__":
     logger.info(f"Output dir: {out_dir}")
     logger.info(f"Group log: {group_log}")
     logger.info(f"Mode: {mode}")
-
-    remove_old_files(input_dir)
-    remove_old_files(out_dir)
-    remove_old_files(group_log)
 
     if mode == 'image':
         logger.info("Processing image with OCR recognition")
@@ -119,3 +120,7 @@ if __name__ == "__main__":
             handle_schedule_change(schedule, src, group_log)
 
     dump_meta_info(meta_info, out_dir)
+
+    remove_old_files(input_dir)
+    remove_old_files(out_dir, exceptions=[os.path.join(out_dir, 'meta_info.json')])
+    remove_old_files(group_log)
