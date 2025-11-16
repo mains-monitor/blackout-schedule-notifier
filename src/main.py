@@ -28,10 +28,13 @@ def parse_args():
 
 
 def remove_old_files(directory, max_files=10, exceptions=None):
+    resolved_exceptions = []
+    if exceptions:
+        resolved_exceptions = [os.path.join(directory, exc) for exc in exceptions]
     files = glob.glob(os.path.join(directory, '*'))
     files.sort(key=os.path.getmtime, reverse=True)
     for file in files[max_files:]:
-        if exceptions and file in exceptions:
+        if file in resolved_exceptions:
             continue
         logger.info(f"Removing old file: {file}")
         os.remove(file)
@@ -126,5 +129,5 @@ if __name__ == "__main__":
     dump_meta_info(meta_info, out_dir)
 
     remove_old_files(input_dir)
-    remove_old_files(out_dir, exceptions=[os.path.join(out_dir, 'meta_info.json')])
+    remove_old_files(out_dir, exceptions=['meta_info.json', 'telegram-meta-v2.json'])
     remove_old_files(group_log)

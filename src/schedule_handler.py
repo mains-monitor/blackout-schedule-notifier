@@ -71,7 +71,7 @@ def handle_schedule_change(schedule, image_path, group_log):
                 date_time, groups, schedule_text_block, schedule.get("last_updated"))
             logger.info(
                 f"Posting message with image: {table_image_path} and message: {message}")
-            post_message_with_image(chat_id, table_image_path, message)
+            post_message_with_image(chat_id, table_image_path, message, schedule_date_time)
         else:
             logger.info("Handling multiple groups")
             date_time = schedule["date_time"]
@@ -142,4 +142,4 @@ def handle_schedule_change(schedule, image_path, group_log):
                 date_time, groups, '\n'.join(texts), schedule.get("last_updated"))
             logger.info(
                 f"Posting message with image: {table_image_path} and message: {message}")
-            post_message_with_image(chat_id, table_image_path, message)
+            post_message_with_image(chat_id, table_image_path, message, schedule_date_time)
