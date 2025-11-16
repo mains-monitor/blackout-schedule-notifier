@@ -9,6 +9,7 @@ import json
 import hashlib
 from schedule_handler import handle_schedule_change
 from json_converter import convert_supplier_json_to_internal
+from config import config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -82,6 +83,9 @@ if __name__ == "__main__":
     out_dir = args.out_dir
     group_log = args.group_log
     mode = args.mode
+    
+    # Initialize global config
+    config.initialize(input_dir, src, out_dir, group_log, mode)
 
     logger.info(f"Input dir: {input_dir}")
     logger.info(f"Source: {src}")
