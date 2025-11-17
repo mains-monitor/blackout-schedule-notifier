@@ -55,7 +55,7 @@ def dump_json_to_file(json_data, directory):
 
     if os.path.exists(file_path):
         logger.info(f"File already exists: {file_path}")
-        return False
+        return file_name
 
     with open(file_path, 'w') as json_file:
         json_file.write(json_str)
