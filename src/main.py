@@ -10,6 +10,7 @@ import hashlib
 from schedule_handler import handle_schedule_change
 from json_converter import convert_supplier_json_to_internal
 from config import config
+from datetime import timedelta
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,13 +28,16 @@ def parse_args():
     return parser.parse_args()
 
 
-def remove_old_files(directory, max_files=20, exceptions=None):
+def remove_old_files(directory, exceptions=None, cutoff_days=2):
     resolved_exceptions = []
     if exceptions:
         resolved_exceptions = [os.path.join(directory, exc) for exc in exceptions]
     files = glob.glob(os.path.join(directory, '*'))
-    files.sort(key=os.path.getmtime, reverse=True)
-    for file in files[max_files:]:
+    current_time = datetime.now()
+    cutoff_time = current_time - timedelta(days=cutoff_days)
+    
+    files = [f for f in files if os.path.getmtime(f) < cutoff_time.timestamp()]
+    for file in files:
         if file in resolved_exceptions:
             continue
         logger.info(f"Removing old file: {file}")
