@@ -27,7 +27,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def remove_old_files(directory, max_files=10, exceptions=None):
+def remove_old_files(directory, max_files=20, exceptions=None):
     resolved_exceptions = []
     if exceptions:
         resolved_exceptions = [os.path.join(directory, exc) for exc in exceptions]
