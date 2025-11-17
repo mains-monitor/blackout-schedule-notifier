@@ -36,15 +36,15 @@ def _store_hash_if_not_exist(directory, json_data, chat_id):
     json_str = json.dumps(json_data, sort_keys=True, default=time_converter)
     md5_hash = hashlib.md5(json_str.encode() + chat_id.encode()).hexdigest()
     file_path = os.path.join(directory, f"{md5_hash}")
+    hash_file_exists = os.path.exists(file_path)
 
-    if os.path.exists(file_path):
+    if hash_file_exists:
         logger.info(f"File already exists: {file_path}")
-        return False
 
     with open(file_path, 'w') as f:
-        f.write('')
-
-    return True
+        f.write(str(int(datetime.now().timestamp())))
+    
+    return not hash_file_exists
 
 
 def handle_schedule_change(schedule, image_path, group_log):
