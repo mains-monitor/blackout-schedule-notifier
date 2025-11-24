@@ -44,8 +44,7 @@ SAFE_MD5=$(echo "$MD5_SUM" | tr -cd 'a-f0-9')
 OUTPUT_FILE="${INPUT_DIRECTORY}/${SAFE_MD5}.json"
 
 if [ -e "$OUTPUT_FILE" ]; then
-    log "File $OUTPUT_FILE already exists. Run cleanup if needed."
-    python src/main.py --input_dir "${INPUT_DIRECTORY}" --out_dir "${OUTPUT_DIRECTORY}" --src "$OUTPUT_FILE" --group_log "${GROUP_LOGS_DIRECTORY}" --mode cleanup
+    log "File $OUTPUT_FILE already exists. No changes detected."
     exit 0
 fi
 
