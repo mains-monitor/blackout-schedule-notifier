@@ -37,10 +37,7 @@ def remove_old_files(directory, exceptions=None, cutoff_days=2):
     current_time = datetime.now()
     cutoff_time = current_time - timedelta(days=cutoff_days)
     logger.info(f"Cutoff time: {cutoff_time}, timestamp: {cutoff_time.timestamp()}")
-    logger.info(f"Resolved exceptions: {resolved_exceptions}")
     logger.info(f"Total files found: {len(files)}")
-    for file in files:
-        logger.info(f"File: {file}, modification time: {datetime.fromtimestamp(os.path.getmtime(file))}, timestamp: {os.path.getmtime(file)}")
     files = [f for f in files if os.path.getmtime(f) < cutoff_time.timestamp()]
     logger.info(f"Files to be removed: {len(files)}")
     for file in files:
@@ -106,43 +103,43 @@ if __name__ == "__main__":
     logger.info(f"Group log: {group_log}")
     logger.info(f"Mode: {mode}")
 
-    # if mode == 'cleanup':
-    #     logger.info("Running cleanup mode")
-    #     remove_old_files(input_dir)
-    #     remove_old_files(out_dir, exceptions=['meta_info.json', 'telegram-meta-v2.json'])
-    #     remove_old_files(group_log)
-    #     exit(0)
-    # elif mode == 'image':
-    #     logger.info("Processing image with OCR recognition")
-    #     # schedule = recognize(src)
-    #     raise NotImplementedError("Image recognition mode is not implemented yet.")
-    # elif mode == 'json':
-    #     logger.info("Processing supplier JSON file")
-    #     schedule = convert_supplier_json_to_internal(src)
-    # else:
-    #     raise ValueError(f"Unknown mode: {mode}")
+    if mode == 'cleanup':
+        logger.info("Running cleanup mode")
+        remove_old_files(input_dir)
+        remove_old_files(out_dir, exceptions=['meta_info.json', 'telegram-meta-v2.json'])
+        remove_old_files(group_log)
+        exit(0)
+    elif mode == 'image':
+        logger.info("Processing image with OCR recognition")
+        # schedule = recognize(src)
+        raise NotImplementedError("Image recognition mode is not implemented yet.")
+    elif mode == 'json':
+        logger.info("Processing supplier JSON file")
+        schedule = convert_supplier_json_to_internal(src)
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
 
     meta_info = {}
 
-    # if isinstance(schedule, list):
-    #     for single_schedule in schedule:
-    #         file_name = dump_json_to_file(single_schedule, out_dir)
-    #         meta_info[single_schedule["date_time"]] = file_name
-    #         if file_name:
-    #             # if 'bit_masks' in single_schedule:
-    #             #     handle_schedule_changes_with_masks(single_schedule, src, group_log)
-    #             # else:
-    #             handle_schedule_change(single_schedule, src, group_log) 
-    # else:
-    #     file_name = dump_json_to_file(schedule, out_dir)
-    #     meta_info[schedule["date_time"]] = file_name
-    #     if file_name:
-    #         # if 'bit_masks' in schedule:
-    #         #     handle_schedule_changes_with_masks(schedule, src, group_log)
-    #         # else:
-    #         handle_schedule_change(schedule, src, group_log)
+    if isinstance(schedule, list):
+        for single_schedule in schedule:
+            file_name = dump_json_to_file(single_schedule, out_dir)
+            meta_info[single_schedule["date_time"]] = file_name
+            if file_name:
+                # if 'bit_masks' in single_schedule:
+                #     handle_schedule_changes_with_masks(single_schedule, src, group_log)
+                # else:
+                handle_schedule_change(single_schedule, src, group_log) 
+    else:
+        file_name = dump_json_to_file(schedule, out_dir)
+        meta_info[schedule["date_time"]] = file_name
+        if file_name:
+            # if 'bit_masks' in schedule:
+            #     handle_schedule_changes_with_masks(schedule, src, group_log)
+            # else:
+            handle_schedule_change(schedule, src, group_log)
 
-    # dump_meta_info(meta_info, out_dir)
+    dump_meta_info(meta_info, out_dir)
 
     remove_old_files(input_dir)
     remove_old_files(out_dir, exceptions=['meta_info.json', 'telegram-meta-v2.json'])
