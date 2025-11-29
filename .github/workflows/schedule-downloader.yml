@@ -2,7 +2,7 @@ name: Schedule Downloader
 
 on:
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
